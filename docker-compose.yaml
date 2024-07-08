@@ -1,16 +1,18 @@
 version: '3.8'
 services:
-  
-  nginx:
+
+  frontend:
     build:
       context: ./frontend
     ports:
-      - "80:80"
+      - "5173:5173"
     env_file:
-      - frontend/.env
+      - frontend/.env        
+    environment: 
+      - VITE_API_URL=http://ficteer.com
     networks:
-      - mine   
-  
+      - mine 
+
   backend:
     build:
       context: ./backend
@@ -21,9 +23,9 @@ services:
     environment:
       PYTHONPATH: /app
     depends_on:
-      - db  
+      - db
     networks:
-      - mine   
+      - mine
 
   db:
     image: postgres:13
@@ -36,26 +38,43 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - mine   
+      - mine
 
   adminer:
     image: adminer
     ports:
       - "8081:8080"
     networks:
-      - mine 
+      - mine
 
-  nginx-proxy-manager:
-    image: jlesage/nginx-proxy-manager
+  proxy:
+    image: 'docker.io/jc21/nginx-proxy-manager:latest'
+    restart: unless-stopped
     ports:
-      - "8181:8181"
-      - "8080:8080"
-      - "4443:4443"
+      - '81:81'
+      - '443:443'
     volumes:
-      - "/docker/appdata/nginx-proxy-manager:/config:rw" 
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
     networks:
-      - mine      
+      - mine
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./proxy_params.conf:/etc/nginx/proxy_params.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+      - db
+      - adminer
+      - proxy
+    networks:
+      - mine 
 
 networks:
   mine:
-    driver: bridge      
+    driver: bridge
